@@ -336,13 +336,19 @@ def rename_font(font: TTFont, new_name: str) -> None:
         6: postscript_name,
     }
 
-    # Update every platform/encoding record for each name ID
+    # Update existing records and create any that are missing.
+    # Iterate existing records first to preserve platform/encoding/language IDs.
+    seen = set()
     for record in name_table.names:
         new = replacements.get(record.nameID)
         if new is not None:
             name_table.setName(
                 new, record.nameID, record.platformID, record.platEncID, record.langID
             )
+            seen.add(record.nameID)
+    for name_id, value in replacements.items():
+        if name_id not in seen:
+            name_table.setName(value, name_id, 3, 1, 0x409)
 
     log.info("font renamed to '%s' (PS: %s)", new_name, postscript_name)
 
