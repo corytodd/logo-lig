@@ -414,7 +414,7 @@ def main():
     png_path = Path(args.png)
     font_path = Path(args.font)
     out_path = Path(args.out)
-    glyph_name = f"logo_{''.join(args.sequence.split())}"
+    glyph_name = "logo_" + re.sub(r"[^A-Za-z0-9._-]", "", args.sequence)
 
     with tempfile.NamedTemporaryFile(suffix=".svg", delete=False) as f:
         svg_path = Path(f.name)
