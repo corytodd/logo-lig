@@ -193,7 +193,7 @@ def add_glyph_to_font(
     )
 
     # Register the new glyph name so the proper order is maintained.
-    font.setGlyphOrder(font.getGlyphOrder() + [glyph_name])
+    font.getGlyphOrder().append(glyph_name)
     font["glyf"][glyph_name] = glyph
 
     # Add hmtx entry (advance width, lsb=0)
