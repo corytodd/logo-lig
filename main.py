@@ -314,7 +314,7 @@ def rename_font(font: TTFont, new_name: str) -> None:
     identify the font.
     """
     # PostScript names: printable ASCII (33-126) excluding [ ] ( ) { } < > / %
-    postscript_name = re.sub(r'[^\x21-\x7e]|[\[\](){}<>/%]', "", new_name)
+    postscript_name = re.sub(r"[^\x21-\x7e]|[\[\](){}<>/%]", "", new_name)
     name_table = font["name"]
 
     #  https://learn.microsoft.com/en-us/typography/opentype/spec/name#name-ids
@@ -392,7 +392,9 @@ def main():
     parser.add_argument("-p", "--png", required=True, help="Logo png file")
     parser.add_argument("-o", "--out", required=True, help="Output .ttf file")
     parser.add_argument(
-        "-s", "--sequence", required=True,
+        "-s",
+        "--sequence",
+        required=True,
         help="Input character sequence (minimum 2 characters).",
     )
     parser.add_argument(
