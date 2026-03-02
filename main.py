@@ -110,8 +110,11 @@ def _draw_svg_paths(
         if not d:
             continue
         t_str = el.get("transform", "")
-        if not t_str and transform is None:
-            svg_parse_path(d, pen)
+        if not t_str:
+            if transform is None:
+                svg_parse_path(d, pen)
+            else:
+                svg_parse_path(d, TransformPen(pen, transform))
             continue
 
         composed = _parse_svg_transform(t_str)
