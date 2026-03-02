@@ -308,6 +308,9 @@ def add_ligature(font: TTFont, sequence: str, glyph_name: str) -> None:
     subtable = target_subtables[0]
     if first_glyph in subtable.ligatures:
         subtable.ligatures[first_glyph].append(lig)
+        subtable.ligatures[first_glyph].sort(
+            key=lambda l: len(l.Component), reverse=True
+        )
     else:
         subtable.ligatures[first_glyph] = [lig]
 
