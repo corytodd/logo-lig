@@ -230,6 +230,8 @@ def add_ligature(font: TTFont, sequence: str, glyph_name: str) -> None:
             f"Ligature sequence must be at least 2 characters, got {len(sequence)!r}"
         )
     cmap = font.getBestCmap()
+    if cmap is None:
+        raise ValueError("Font has no usable cmap table.")
     glyph_seq = []
     for c in sequence:
         glyph_seq.append(glyph_name_for_char(cmap, c))
