@@ -364,6 +364,8 @@ def _wire_lookup_into_liga(gsub, lookup_index: int) -> None:
     feature_list.FeatureRecord.append(fr)
     feature_list.FeatureCount += 1
 
+    if gsub.ScriptList is None:
+        return
     for script_record in gsub.ScriptList.ScriptRecord:
         script = script_record.Script
         if script.DefaultLangSys:
