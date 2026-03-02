@@ -47,9 +47,10 @@ def png_to_svg(png_path: Path, svg_path: Path, *, invert: bool = False) -> None:
     # HACK: transparency is hard. composite onto white background,
     # then convert to grayscale for vtracer.
     # TODO: what's the correct way to preserve alpha in vtracer?
-    img = Image.open(png_path).convert("RGBA")
-    bg = Image.new("RGBA", img.size, (255, 255, 255, 255))
-    bg.paste(img, mask=img.split()[3])
+    with Image.open(png_path) as img:
+        rgba = img.convert("RGBA")
+    bg = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
+    bg.paste(rgba, mask=rgba.split()[3])
     gray = bg.convert("L")
     if invert:
         gray = ImageOps.invert(gray)
