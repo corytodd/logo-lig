@@ -89,9 +89,11 @@ def _parse_svg_transform(s: str | None) -> Transform:
     if not s:
         return Transform()
     s = s.strip()
-    m = re.match(r"translate\(([^,\s]+)[,\s]+([^)]*)\)", s)
+    m = re.match(r"translate\(([^,\s)]+)(?:[,\s]+([^)]*))?\)", s)
     if m:
-        return Transform().translate(float(m.group(1)), float(m.group(2)))
+        tx = float(m.group(1))
+        ty = float(m.group(2)) if m.group(2) else 0.0
+        return Transform().translate(tx, ty)
     m = re.match(r"matrix\(([^)]+)\)", s)
     if not m:
         return Transform()
