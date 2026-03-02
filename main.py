@@ -97,9 +97,10 @@ def _parse_svg_transform(s: str | None) -> Transform:
     m = re.match(r"matrix\(([^)]+)\)", s)
     if not m:
         return Transform()
-    parts = []
-    for x in re.split(r"[,\s]+", m.group(1).strip()):
-        parts.append(float(x))
+    parts = re.split(r"[,\s]+", m.group(1).strip())
+    parts = [float(x) for x in parts]
+    if len(parts) != 6:
+        return Transform()
     return Transform(*parts)
 
 
