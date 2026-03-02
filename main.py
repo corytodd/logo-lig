@@ -256,7 +256,7 @@ def add_ligature(font: TTFont, sequence: str, glyph_name: str) -> None:
 
         if lookup.LookupType == 7:
             subtables = [st.ExtSubTable for st in subtables]
-            if not hasattr(subtables[0], "ligatures"):
+            if not subtables or not hasattr(subtables[0], "ligatures"):
                 continue
         elif lookup.LookupType != 4:
             continue
