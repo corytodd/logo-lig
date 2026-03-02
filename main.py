@@ -306,7 +306,8 @@ def rename_font(font: TTFont, new_name: str) -> None:
     Update the name table entries that determine how the OS and applications
     identify the font.
     """
-    postscript_name = new_name.replace(" ", "")
+    # PostScript names: printable ASCII (33-126) excluding [ ] ( ) { } < > / %
+    postscript_name = re.sub(r'[^\x21-\x7e]|[\[\](){}<>/%]', "", new_name)
     name_table = font["name"]
 
     #  https://learn.microsoft.com/en-us/typography/opentype/spec/name#name-ids
