@@ -224,6 +224,10 @@ def add_ligature(font: TTFont, sequence: str, glyph_name: str) -> None:
     """
     Add a ligature substitution to the font that maps sequence -> glyph_name.
     """
+    if len(sequence) < 2:
+        raise ValueError(
+            f"Ligature sequence must be at least 2 characters, got {len(sequence)!r}"
+        )
     cmap = font.getBestCmap()
     glyph_seq = []
     for c in sequence:
@@ -385,7 +389,8 @@ def main():
     parser.add_argument("-p", "--png", required=True, help="Logo png file")
     parser.add_argument("-o", "--out", required=True, help="Output .ttf file")
     parser.add_argument(
-        "-s", "--sequence", required=True, help="Input character sequence"
+        "-s", "--sequence", required=True,
+        help="Input character sequence (minimum 2 characters).",
     )
     parser.add_argument(
         "--scale",
@@ -419,6 +424,8 @@ def main():
         help="Increase verbosity (-v for info, -vv for debug).",
     )
     args = parser.parse_args()
+    if len(args.sequence) < 2:
+        parser.error("--sequence must be at least 2 characters")
     _configure_logging(verbosity=args.verbose)
     log.debug("args: %s", args)
 
