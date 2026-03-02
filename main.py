@@ -53,14 +53,16 @@ def png_to_svg(png_path: Path, svg_path: Path, *, invert: bool = False) -> None:
     gray = bg.convert("L")
     if invert:
         gray = ImageOps.invert(gray)
-    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
-        gray.save(f.name)
 
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+        tmp_name = f.name
+    try:
+        gray.save(tmp_name)
         # vtracer is much faster than pixels2svg and produces cleaner paths
         # These are all default parameters except for mode.
         # Polygon mode produces much cleaner output for logos I've tested with
         vtracer.convert_image_to_svg_py(
-            f.name,
+            tmp_name,
             str(svg_path),
             colormode="binary",
             hierarchical="stacked",
@@ -74,6 +76,8 @@ def png_to_svg(png_path: Path, svg_path: Path, *, invert: bool = False) -> None:
             splice_threshold=45,
             path_precision=3,
         )
+    finally:
+        Path(tmp_name).unlink(missing_ok=True)
 
 
 def _parse_svg_transform(s: str | None) -> Transform:
@@ -408,12 +412,15 @@ def main():
 
     with tempfile.NamedTemporaryFile(suffix=".svg", delete=False) as f:
         svg_path = Path(f.name)
+    try:
         png_to_svg(png_path, svg_path, invert=args.invert)
 
         font = TTFont(font_path)
         add_glyph_to_font(
             font, svg_path, glyph_name, max_width=args.max_width, scale=args.scale
         )
+    finally:
+        svg_path.unlink(missing_ok=True)
 
     add_ligature(font, args.sequence, glyph_name)
 
