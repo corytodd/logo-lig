@@ -232,7 +232,13 @@ def add_ligature(font: TTFont, sequence: str, glyph_name: str) -> None:
     rest_glyphs = glyph_seq[1:]
     log.info("ligature: %s = %s", " + ".join(glyph_seq), glyph_name)
 
+    if "GSUB" not in font:
+        # TODO: can we create this ourselves?
+        raise ValueError("Font has no GSUB table; cannot add ligature substitution.")
     gsub = font["GSUB"].table
+    if gsub.FeatureList is None or gsub.LookupList is None:
+        # TODO: can we create this ourselves?
+        raise ValueError("Font GSUB table is missing FeatureList or LookupList.")
 
     # Find all lookup indices referenced by any liga FeatureRecord
     liga_lookup_indices = set()
