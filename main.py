@@ -97,11 +97,15 @@ def _parse_svg_transform(s: str | None) -> Transform:
     m = re.match(r"matrix\(([^)]+)\)", s)
     if not m:
         return Transform()
-    parts = re.split(r"[,\s]+", m.group(1).strip())
-    parts = [float(x) for x in parts]
-    if len(parts) != 6:
+    points = []
+    try:
+        parts = re.split(r"[,\s]+", m.group(1).strip())
+        points = [float(x) for x in parts]
+    except ValueError:
+        raise ValueError(f"Invalid matrix transform values: {m.group(1)!r}")
+    if len(points) != 6:
         return Transform()
-    return Transform(*parts)
+    return Transform(*points)
 
 
 def _draw_svg_paths(
