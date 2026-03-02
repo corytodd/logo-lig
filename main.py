@@ -58,8 +58,8 @@ def png_to_svg(png_path: Path, svg_path: Path, *, invert: bool = False) -> None:
         tmp_name = f.name
     try:
         gray.save(tmp_name)
-        # vtracer is much faster than pixels2svg and produces cleaner paths
-        # These are all default parameters except for mode.
+        # vtracer is much faster than pixels2svg and produces cleaner paths.
+        # Non-defaults: colormode=binary, mode=polygon.
         # Polygon mode produces much cleaner output for logos I've tested with
         vtracer.convert_image_to_svg_py(
             tmp_name,
