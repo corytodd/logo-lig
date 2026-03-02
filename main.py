@@ -429,6 +429,8 @@ def main():
     args = parser.parse_args()
     if len(args.sequence) < 2:
         parser.error("--sequence must be at least 2 characters")
+    if Path(args.font).resolve() == Path(args.out).resolve():
+        parser.error("--font and --out must be different files")
     _configure_logging(verbosity=args.verbose)
     log.debug("args: %s", args)
 
