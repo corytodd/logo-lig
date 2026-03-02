@@ -181,7 +181,8 @@ def add_glyph_to_font(
     max_width: int | None = None,
     scale: float = 1.0,
 ) -> None:
-    cap_height = font["OS/2"].sCapHeight or font["OS/2"].sTypoAscender
+    os2 = font["OS/2"]
+    cap_height = os2.sCapHeight or os2.sTypoAscender
     units_per_em = font["head"].unitsPerEm
     target_height = round(cap_height * scale)
     target_max_width = round((max_width or units_per_em) * scale)
