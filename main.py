@@ -206,8 +206,8 @@ def add_glyph_to_font(
     log.info("added glyph '%s' (advance=%s)", glyph_name, advance)
 
 
-def glyph_name_for_char(font: TTFont, char: str) -> str:
-    name = font.getBestCmap().get(ord(char))
+def glyph_name_for_char(cmap: dict, char: str) -> str:
+    name = cmap.get(ord(char))
     if name is None:
         raise KeyError(f"No glyph for '{char}' (U+{ord(char):04X}) in font")
     return name
@@ -217,9 +217,10 @@ def add_ligature(font: TTFont, sequence: str, glyph_name: str) -> None:
     """
     Add a ligature substitution to the font that maps sequence -> glyph_name.
     """
+    cmap = font.getBestCmap()
     glyph_seq = []
     for c in sequence:
-        glyph_seq.append(glyph_name_for_char(font, c))
+        glyph_seq.append(glyph_name_for_char(cmap, c))
     first_glyph = glyph_seq[0]
     rest_glyphs = glyph_seq[1:]
     log.info("ligature: %s = %s", " + ".join(glyph_seq), glyph_name)
