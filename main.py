@@ -101,10 +101,9 @@ def _parse_svg_transform(s: str | None) -> Transform:
 
 
 def _draw_svg_paths(
-    svg_path: Path, pen: AbstractPen, transform: Transform | None = None
+    root: ET.Element, pen: AbstractPen, transform: Transform | None = None
 ) -> None:
-    """Draw all <path> elements from svg_path to pen, composing element transforms."""
-    root = ET.parse(svg_path).getroot()
+    """Draw all <path> elements from an SVG root element to pen, composing element transforms."""
     for el in root.findall(".//{http://www.w3.org/2000/svg}path"):
         d = el.get("d", "")
         if not d:
@@ -128,8 +127,9 @@ def svg_to_glyph(
     Parse svg paths and return (glyph, advance_width) while preserving the
     aspect ratio and fitting within target_width x target_height.
     """
+    root = ET.parse(svg_path).getroot()
     bounds_pen = BoundsPen(None)
-    _draw_svg_paths(svg_path, bounds_pen)
+    _draw_svg_paths(root, bounds_pen)
     if bounds_pen.bounds is None:
         raise ValueError("No paths found in svg, vectorization may have failed.")
 
@@ -166,7 +166,7 @@ def svg_to_glyph(
     transform = Transform(scale, 0, 0, -scale, -xmin * scale, ymax * scale)
 
     tt_pen = TTGlyphPen(font.getGlyphSet())
-    _draw_svg_paths(svg_path, tt_pen, transform)
+    _draw_svg_paths(root, tt_pen, transform)
 
     glyph = tt_pen.glyph()
     # The horizontal distance the cursor should advance after drawing the glyph
