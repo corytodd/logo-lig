@@ -8,9 +8,13 @@
             src: url('noto_sans_mono_219.ttf');
         }
 
+        @font-face {
+            font-family: 'TestFontInverted';
+            src: url('noto_sans_mono_219_inverted.ttf');
+        }
+
         body {
             font-size: 72px;
-            font-family: 'TestFont';
             font-feature-settings: "liga" 1;
         }
 
@@ -28,13 +32,35 @@
             background: red;
             color: black;
         }
+
+        #toggle-btn {
+            font-family: sans-serif;
+            font-size: 16px;
+            padding: 8px 16px;
+            margin-bottom: 16px;
+            cursor: pointer;
+        }
     </style>
 </head>
 
 <body>
+    <button id="toggle-btn" onclick="toggleFont()">Switch to Inverted</button>
     <p class="light">light: 219</p>
     <p class="dark">dark: 219</p>
     <p class="red">red: 219</p>
+    <script>
+        let showingInverted = false;
+        const fonts = ['TestFont', 'TestFontInverted'];
+        function toggleFont() {
+            showingInverted = !showingInverted;
+            const font = fonts[showingInverted ? 1 : 0];
+            document.querySelectorAll('p').forEach(p => p.style.fontFamily = font);
+            document.getElementById('toggle-btn').textContent =
+                showingInverted ? 'Switch to Normal' : 'Switch to Inverted';
+        }
+        // Apply initial font
+        document.querySelectorAll('p').forEach(p => p.style.fontFamily = fonts[0]);
+    </script>
 </body>
 
 </html>
