@@ -1,5 +1,5 @@
 [project]
-name = "font-ligs"
+name = "font-lig"
 version = "0.1.0"
 description = "Add logo to a font as a ligature."
 readme = "README.md"
@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.scripts]
-font-ligs = "main:main"
+font-lig = "main:main"
 
 [dependency-groups]
 dev = ["ruff"]
