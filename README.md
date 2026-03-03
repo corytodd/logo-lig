@@ -4,7 +4,7 @@ Injects a PNG logo into a TTF font as a ligature. Type a trigger sequence
 in any ligature-aware tool and the logo renders in place of the text.
 
 ```
-uv run main.py --font input.ttf --png cool.png --out output.ttf --sequence "cool" --family-name "Font + Cool"
+uv run font-ligs --font input.ttf --png cool.png --out output.ttf --sequence "cool" --family-name "Font + Cool"
 ```
 
 ## What it does
