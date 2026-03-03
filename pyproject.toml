@@ -3,7 +3,7 @@ name = "font-ligs"
 version = "0.1.0"
 description = "Add logo to a font as a ligature."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = "==3.12.*"
 dependencies = [
     "fonttools>=4.61.1",
     "numpy>=2.4.2",
@@ -16,3 +16,10 @@ font-ligs = "main:main"
 
 [dependency-groups]
 dev = ["ruff"]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["main"]
