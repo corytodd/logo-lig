@@ -7,6 +7,11 @@ in any ligature-aware tool and the logo renders in place of the text.
 uv run font-lig --font input.ttf --png cool.png --out output.ttf --sequence "cool" --family-name "Font + Cool"
 ```
 
+## Existing Tools
+
+There are lots of ways to make your own font. I didn't see anything obvious and single-purpose to achieve this
+but would be thrilled if there is an existing tool that I overlooked!
+
 ## What it does
 
 1. Vectorizes the PNG with vtracer
@@ -45,7 +50,7 @@ past them. You have to unwrap the ExtSubTable and check what is inside.
 
 **Coverage tables.** The OpenType ligature substitution format requires a
 Coverage table listing which glyphs can start a substitution. It seemed like
-something that needed manual maintenance. It does not - fontTools rebuilds it
+something that needed manual maintenance. It does not! fontTools rebuilds it
 automatically from the ligatures dict keys when serializing. Adding manual
 update code was not only unnecessary but produced corrupt output.
 
