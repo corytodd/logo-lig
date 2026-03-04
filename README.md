@@ -22,8 +22,12 @@ but would be thrilled if there is an existing tool that I overlooked!
 I've only tested a handful of fonts. Monospace and non-monospace, ligatured and
 ligature-free fonts should all work.
 
-`--family-name` is required. Always give the output font a new name - installing
+`--family-name` is required. Always give the output font a new name. Installing
 it under the original name will shadow the real font and confuse applications.
+
+## Missing Features
+
+- GSUB type 5 and 6 support so patterns don't match inside a string, e.g 1<sequence>1
 
 ## Learned
 
