@@ -283,15 +283,13 @@ def get_or_create_marker_glyph(font: TTFont, base_glyph: str) -> str:
     return marker
 
 
-def non_whitespace_glyphs(font: TTFont) -> list[str]:
+def alphanumeric_glyphs(font: TTFont) -> list[str]:
     """
-    Return glyph names for all non-whitespace characters in the font.
-    The ligature fires only when surrounded by whitespace or at a run boundary.
-
-    TODO: Are there other boundaries that may "trick" us?
+    Return glyph names for all alphanumeric characters in the font.
+    The ligature is suppressed when preceded/followed by a letter or digit.
     """
     cmap = font.getBestCmap() or {}
-    return [name for c, name in cmap.items() if not chr(c).isspace()]
+    return [name for c, name in cmap.items() if chr(c).isalnum()]
 
 
 def make_lig(glyph_name: str, components: list[str]) -> ot.Ligature:
@@ -393,7 +391,7 @@ def add_ligature(
     first_glyph = glyph_seq[0]
 
     if context:
-        exclusion_glyphs = non_whitespace_glyphs(font)
+        exclusion_glyphs = alphanumeric_glyphs(font)
         log.debug("context exclusion glyphs: %s", exclusion_glyphs)
 
         if exclusion_glyphs:
