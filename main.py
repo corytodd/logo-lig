@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import copy
 import logging
 import shutil
 import tempfile
@@ -246,95 +247,212 @@ def glyph_name_for_char(cmap: dict, char: str) -> str:
     return name
 
 
-def add_ligature(font: TTFont, sequence: str, glyph_name: str) -> None:
+def make_coverage(glyph_names: list[str]) -> ot.Coverage:
+    """Return OpenType Coverage table for these glyphs
+
+    This tells the fonts which glyphs (our sequence) a substitution rule
+    applies to.
     """
-    Add a ligature substitution to the font that maps sequence -> glyph_name.
+    cov = ot.Coverage()
+    # After much fuss it turns out setting the Format field is a NOP
+    # The library will choose the most optimal configuration when we serialize.
+    # https://github.com/fonttools/fonttools/blob/c760aaab4abbbb0d069b80f8b10334a429738319/Lib/fontTools/ttLib/tables/otTables.py#L970
+    cov.Format = 1
+    cov.glyphs = sorted(set(glyph_names))
+    return cov
+
+
+def get_or_create_marker_glyph(font: TTFont, base_glyph: str) -> str:
+    """Return glyph to be used for when ligature must not trigger
+
+    Example: If the sequence is 123 and the shaper sees a123, the presence of
+             'a' causes 1 to be replaced with this marker, which the ligature
+             rule won't match
+
+    Base on: Fira code conjunction but without messing with .fea source.
+    https://github.com/tonsky/FiraCode/blob/e50b177465f32b2f439098c4fcf7451cf70adc6b/features/calt/conj_disj.fea#L2
     """
-    if len(sequence) < 2:
-        raise ValueError(
-            f"Ligature sequence must be at least 2 characters, got {len(sequence)!r}"
-        )
-    cmap = font.getBestCmap()
-    if cmap is None:
-        raise ValueError("Font has no usable cmap table.")
-    glyph_seq = []
-    for c in sequence:
-        glyph_seq.append(glyph_name_for_char(cmap, c))
-    first_glyph = glyph_seq[0]
-    rest_glyphs = glyph_seq[1:]
-    log.info("ligature: %s = %s", " + ".join(glyph_seq), glyph_name)
+    marker = base_glyph + ".ctx"
+    if marker not in font.getGlyphOrder():
+        font.getGlyphOrder().append(marker)
+        # glyf is mutable; make a copy to so the marker is not accidentally modified
+        font["glyf"][marker] = copy.copy(font["glyf"][base_glyph])
+        font["hmtx"][marker] = font["hmtx"][base_glyph]
+    return marker
 
-    if "GSUB" not in font:
-        # TODO: can we create this ourselves?
-        raise ValueError("Font has no GSUB table; cannot add ligature substitution.")
-    gsub = font["GSUB"].table
-    if gsub.FeatureList is None or gsub.LookupList is None:
-        # TODO: can we create this ourselves?
-        raise ValueError("Font GSUB table is missing FeatureList or LookupList.")
 
-    # Find all lookup indices referenced by any liga FeatureRecord
-    liga_lookup_indices = set()
-    for fr in gsub.FeatureList.FeatureRecord:
-        if fr.FeatureTag == "liga":
-            liga_lookup_indices.update(fr.Feature.LookupListIndex)
+def non_whitespace_glyphs(font: TTFont) -> list[str]:
+    """
+    Return glyph names for all non-whitespace characters in the font.
+    The ligature fires only when surrounded by whitespace or at a run boundary.
 
-    # Find the first LookupType 4 among them, unwrapping Type 7 (Extension) if needed.
-    # https://learn.microsoft.com/en-us/typography/opentype/spec/gsub#lookup-type-4-subtable-ligature-substitution
-    # https://learn.microsoft.com/en-us/typography/opentype/spec/gsub#lookup-type-7-subtable-substitution-subtable-extension
-    target_subtables = None
-    for idx in sorted(liga_lookup_indices):
+    TODO: Are there other boundaries that may "trick" us?
+    """
+    cmap = font.getBestCmap() or {}
+    return [name for c, name in cmap.items() if not chr(c).isspace()]
+
+
+def make_lig(glyph_name: str, components: list[str]) -> ot.Ligature:
+    lig = ot.Ligature()
+    lig.LigGlyph = glyph_name
+    lig.Component = components
+    return lig
+
+
+def make_lookup(lookup_type: int, subtables: list) -> ot.Lookup:
+    lookup = ot.Lookup()
+    lookup.LookupType = lookup_type
+    lookup.LookupFlag = 0
+    lookup.SubTable = subtables
+    lookup.SubTableCount = len(subtables)
+    return lookup
+
+
+def append_lookup(gsub, lookup: ot.Lookup) -> int:
+    idx = len(gsub.LookupList.Lookup)
+    gsub.LookupList.Lookup.append(lookup)
+    gsub.LookupList.LookupCount += 1
+    return idx
+
+
+def add_lig_lookup(gsub) -> tuple[ot.LigatureSubst, int]:
+    """Create a fresh Type 4 lookup, wire it into liga, and return (subtable, index)."""
+    subtable = ot.LigatureSubst()
+    subtable.ligatures = {}
+    lookup_type_4 = make_lookup(4, [subtable])
+    idx = append_lookup(gsub, lookup_type_4)
+    wire_lookup_into_liga(gsub, idx)
+    return subtable, idx
+
+
+def find_or_create_lig_subtable(gsub) -> ot.LigatureSubst:
+    """Return the first Type 4 LigatureSubst subtable wired into liga, creating one if needed.
+
+    Unwraps Type 7 (Extension) lookups transparently.
+    https://learn.microsoft.com/en-us/typography/opentype/spec/gsub#lookup-type-4-subtable-ligature-substitution
+    https://learn.microsoft.com/en-us/typography/opentype/spec/gsub#lookup-type-7-subtable-substitution-subtable-extension
+    """
+    liga_indices = {
+        i
+        for fr in gsub.FeatureList.FeatureRecord
+        if fr.FeatureTag == "liga"
+        for i in fr.Feature.LookupListIndex
+    }
+    for idx in sorted(liga_indices):
         lookup = gsub.LookupList.Lookup[idx]
         subtables = lookup.SubTable
-
-        # TODO: support type 5 or 6 for better context control
         if lookup.LookupType == 7:
             subtables = [st.ExtSubTable for st in subtables]
             if not subtables or not hasattr(subtables[0], "ligatures"):
                 continue
         elif lookup.LookupType != 4:
             continue
-
-        target_subtables = subtables
         log.debug(
             "appending to existing liga lookup index %d (type=%d)",
             idx,
             lookup.LookupType,
         )
-        break
+        return subtables[0]
 
-    if target_subtables is None:
-        # No existing liga LookupType 4: create one from scratch and wire it in.
-        new_subtable = ot.LigatureSubst()
-        new_subtable.Format = 1
-        new_subtable.ligatures = {}
+    subtable, idx = add_lig_lookup(gsub)
+    log.debug("created new liga lookup at index %d", idx)
+    return subtable
 
-        new_lookup = ot.Lookup()
-        new_lookup.LookupType = 4
-        new_lookup.LookupFlag = 0
-        new_lookup.SubTable = [new_subtable]
-        new_lookup.SubTableCount = 1
 
-        lookup_index = len(gsub.LookupList.Lookup)
-        gsub.LookupList.Lookup.append(new_lookup)
-        gsub.LookupList.LookupCount += 1
-        target_subtables = [new_subtable]
+def add_ligature(
+    font: TTFont, sequence: str, glyph_name: str, *, context: bool = False
+) -> None:
+    """
+    Add a ligature substitution to the font that maps sequence -> glyph_name.
 
-        _wire_lookup_into_liga(gsub, lookup_index)
-        log.debug("created new liga lookup at index %d", lookup_index)
+    When context=True the ligature only fires when the sequence is NOT adjacent
+    to other non-whitespace characters. Uses GSUB Type 6 + Type 4.
 
-    # Build the Ligature record and append to the first subtable
-    lig = ot.Ligature()
-    lig.LigGlyph = glyph_name
-    lig.Component = rest_glyphs
+    Strategy (context=True) two lookups wired into 'liga' in order:
+      L_mark (Type 6): when a forbidden neighbor is found, substitute
+                       seq[0] -> seq[0].ctx, a visually identical marker glyph.
+      L_lig  (Type 4): substitute seq[0] seq[1]... -> glyph_name
+                       seq[0].ctx won't match, so the ligature is suppressed.
+    """
+    if len(sequence) < 2:
+        raise ValueError(
+            f"Ligature sequence must be at least 2 characters, got {len(sequence)!r}"
+        )
+    if "GSUB" not in font:
+        raise ValueError("Font has no GSUB table; cannot add ligature substitution.")
+    gsub = font["GSUB"].table
+    if gsub.FeatureList is None or gsub.LookupList is None:
+        raise ValueError("Font GSUB table is missing FeatureList or LookupList.")
+    cmap = font.getBestCmap()
+    if cmap is None:
+        raise ValueError("Font has no usable cmap table.")
 
-    subtable = target_subtables[0]
-    if first_glyph in subtable.ligatures:
-        subtable.ligatures[first_glyph].append(lig)
+    glyph_seq = [glyph_name_for_char(cmap, c) for c in sequence]
+    first_glyph = glyph_seq[0]
+
+    if context:
+        exclusion_glyphs = non_whitespace_glyphs(font)
+        log.debug("context exclusion glyphs: %s", exclusion_glyphs)
+
+        if exclusion_glyphs:
+            marker_glyph = get_or_create_marker_glyph(font, first_glyph)
+
+            # L_sub1 (Type 1): first_glyph -> marker_glyph
+            subst1 = ot.SingleSubst()
+            subst1.mapping = {first_glyph: marker_glyph}
+            lookup_type_1 = make_lookup(1, [subst1])
+            sub1_idx = append_lookup(gsub, lookup_type_1)
+
+            # L_mark (Type 6): two subtables one checks backtrack, one checks lookahead.
+            # Each independently marks first_glyph when a forbidden neighbor is found.
+            excl_cov = make_coverage(exclusion_glyphs)
+            input_covs = [make_coverage([g]) for g in glyph_seq]
+
+            def _chain_rule(backtrack_cov, lookahead_cov):
+                rule = ot.ChainContextSubst()
+                rule.Format = 3
+                rule.BacktrackCoverage = [backtrack_cov] if backtrack_cov else []
+                rule.InputCoverage = input_covs
+                rule.LookAheadCoverage = [lookahead_cov] if lookahead_cov else []
+                slr = ot.SubstLookupRecord()
+                slr.SequenceIndex = 0
+                slr.LookupListIndex = sub1_idx
+                rule.SubstLookupRecord = [slr]
+                rule.SubstCount = 1
+                return rule
+
+            subtables = [
+                _chain_rule(excl_cov, None),  # forbidden char before seq
+                _chain_rule(None, excl_cov),  # forbidden char after seq
+            ]
+            lookup_type_6 = make_lookup(6, subtables)
+            mark_idx = append_lookup(gsub, lookup_type_6)
+            wire_lookup_into_liga(gsub, mark_idx)
+            log.info(
+                "ligature context: marker=%s, mark_lookup=%d, sub1_lookup=%d",
+                marker_glyph,
+                mark_idx,
+                sub1_idx,
+            )
+
+        # L_lig (Type 4): always a fresh lookup so it's wired after L_mark.
+        lig_subst, lig_idx = add_lig_lookup(gsub)
+        lig_subst.ligatures = {first_glyph: [make_lig(glyph_name, glyph_seq[1:])]}
+        log.info(
+            "ligature with context: %s -> %s (lig_lookup=%d)",
+            sequence,
+            glyph_name,
+            lig_idx,
+        )
+
+    else:
+        log.info("(non-context) ligature: %s = %s", " + ".join(glyph_seq), glyph_name)
+        subtable = find_or_create_lig_subtable(gsub)
+        lig = make_lig(glyph_name, glyph_seq[1:])
+        subtable.ligatures.setdefault(first_glyph, []).append(lig)
         subtable.ligatures[first_glyph].sort(
             key=lambda _lig: len(_lig.Component), reverse=True
         )
-    else:
-        subtable.ligatures[first_glyph] = [lig]
 
 
 def rename_font(font: TTFont, new_name: str) -> None:
@@ -375,7 +493,7 @@ def rename_font(font: TTFont, new_name: str) -> None:
     log.info("font renamed to '%s' (PS: %s)", new_name, postscript_name)
 
 
-def _wire_lookup_into_liga(gsub, lookup_index: int) -> None:
+def wire_lookup_into_liga(gsub, lookup_index: int) -> None:
     """
     Append lookup_index to every existing liga FeatureRecord.
     If no liga feature exists, create one and wire it into every script/langsys.
@@ -482,7 +600,7 @@ def main():
     finally:
         svg_path.unlink(missing_ok=True)
 
-    add_ligature(font, args.sequence, glyph_name)
+    add_ligature(font, args.sequence, glyph_name, context=True)
 
     rename_font(font, args.family_name)
 

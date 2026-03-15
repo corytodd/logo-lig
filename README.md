@@ -1,7 +1,9 @@
 # Logo Lig
 
 Injects a PNG logo into a TTF font as a ligature. Type a trigger sequence
-in any ligature-aware tool and the logo renders in place of the text.
+in any ligature-aware tool and the logo renders in place of the text. The
+replacement is context aware and will only trigger when the sequence is
+surrounded by whitespace.
 
 ```
 uv run font-lig --font input.ttf --logo cool.png --out output.ttf --sequence "cool" --family-name "Font + Cool"
@@ -24,10 +26,6 @@ ligature-free fonts should all work.
 
 `--family-name` is required. Always give the output font a new name. Installing
 it under the original name will shadow the real font and confuse applications.
-
-## Missing Features
-
-- GSUB type 5 and 6 support so patterns don't match inside a string, e.g 1<sequence>1
 
 ## Learned
 
