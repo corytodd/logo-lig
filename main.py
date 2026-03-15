@@ -9,7 +9,7 @@ import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from PIL import Image, ImageOps
+from PIL import Image
 import vtracer
 from fontTools.ttLib import TTFont
 from fontTools.pens.basePen import AbstractPen
@@ -331,7 +331,7 @@ def add_ligature(font: TTFont, sequence: str, glyph_name: str) -> None:
     if first_glyph in subtable.ligatures:
         subtable.ligatures[first_glyph].append(lig)
         subtable.ligatures[first_glyph].sort(
-            key=lambda l: len(l.Component), reverse=True
+            key=lambda _lig: len(_lig.Component), reverse=True
         )
     else:
         subtable.ligatures[first_glyph] = [lig]
