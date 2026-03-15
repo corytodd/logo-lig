@@ -8,7 +8,11 @@ follow the sequence.
 
 ```
 uv run font-lig --font input.ttf --logo cool.png --out output.ttf --sequence "cool" --family-name "Font + Cool"
+
+echo "Fonts are cool!"
 ```
+
+![example](./examples/fonts_are_cool.png)
 
 ## Existing Tools
 
