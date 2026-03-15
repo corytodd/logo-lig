@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import shutil
 import tempfile
 
 import re
@@ -12,6 +13,7 @@ from PIL import Image, ImageOps
 import vtracer
 from fontTools.ttLib import TTFont
 from fontTools.pens.basePen import AbstractPen
+from fontTools.pens.cu2quPen import Cu2QuPen
 from fontTools.pens.ttGlyphPen import TTGlyphPen
 from fontTools.pens.boundsPen import BoundsPen
 from fontTools.pens.transformPen import TransformPen
@@ -40,20 +42,34 @@ def _configure_logging(*, verbosity: int) -> None:
 log = logging.getLogger(__name__)
 
 
-def png_to_svg(png_path: Path, svg_path: Path, *, invert: bool = False) -> None:
+def img_to_svg(img_path: Path, svg_path: Path) -> None:
     """
-    Vectorize a png into an svg.
+    Vectorize an image into an svg.
+
+    Note: If img_path is already an SVG no conversion is performed in this step.
+          An implementation detail is leaked here because the svg to ttf process
+          will convert all cubic curves to quadratic curves. This path is only
+          relevant when an svg is provided. For other image types, vtracer is
+          uses polygon mode which handles the linearization. In my testing,
+          vtracer spline mode produces less pretty TTF output due to noise.
     """
+    if img_path.suffix.lower() in (".svg", ".svgz"):
+        shutil.copy(img_path, svg_path)
+        log.info("image is already svg, skipping conversion")
+        return
+
     # HACK: transparency is hard. composite onto white background,
     # then convert to grayscale for vtracer.
     # TODO: what's the correct way to preserve alpha in vtracer?
-    with Image.open(png_path) as img:
-        rgba = img.convert("RGBA")
+    try:
+        with Image.open(img_path) as img:
+            rgba = img.convert("RGBA")
+    except Image.UnidentifiedImageError as ex:
+        log.error("unsupported image type: %s", img_path)
+        raise ex
     bg = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
     bg.paste(rgba, mask=rgba.split()[3])
     gray = bg.convert("L")
-    if invert:
-        gray = ImageOps.invert(gray)
 
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
         tmp_name = f.name
@@ -177,7 +193,12 @@ def svg_to_glyph(
     transform = Transform(scale, 0, 0, -scale, -xmin * scale, ymax * scale)
 
     tt_pen = TTGlyphPen(font.getGlyphSet())
-    _draw_svg_paths(root, tt_pen, transform)
+    # TTF supports only quadratic curves. If a raw SVG was provided, filter any
+    # (cu)bic curves and convert them to (qu)adratic curves.
+    # This is an approximation using max_err in 1/unitsPerEm.
+    # i.e. this is an imperceptible loss of fidelity.
+    cubic_pen = Cu2QuPen(tt_pen, max_err=1.0)
+    _draw_svg_paths(root, cubic_pen, transform)
 
     glyph = tt_pen.glyph()
     # The horizontal distance the cursor should advance after drawing the glyph
@@ -403,7 +424,7 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("-f", "--font", required=True, help="Input .ttf file")
-    parser.add_argument("-p", "--png", required=True, help="Logo png file")
+    parser.add_argument("-l", "--logo", required=True, help="Logo file (png, svg)")
     parser.add_argument("-o", "--out", required=True, help="Output .ttf file")
     parser.add_argument(
         "-s",
@@ -430,12 +451,6 @@ def main():
         help="Override the font family name to avoid conflicts with original font.",
     )
     parser.add_argument(
-        "-i",
-        "--invert",
-        action="store_true",
-        help="Invert PNG before tracing.",
-    )
-    parser.add_argument(
         "-v",
         "--verbose",
         action="count",
@@ -450,7 +465,7 @@ def main():
     _configure_logging(verbosity=args.verbose)
     log.debug("args: %s", args)
 
-    png_path = Path(args.png)
+    logo_path = Path(args.logo)
     font_path = Path(args.font)
     out_path = Path(args.out)
     glyph_name = "logo_" + re.sub(r"[^A-Za-z0-9._-]", "", args.sequence)
@@ -458,7 +473,7 @@ def main():
     with tempfile.NamedTemporaryFile(suffix=".svg", delete=False) as f:
         svg_path = Path(f.name)
     try:
-        png_to_svg(png_path, svg_path, invert=args.invert)
+        img_to_svg(logo_path, svg_path)
 
         font = TTFont(font_path)
         add_glyph_to_font(

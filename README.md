@@ -4,7 +4,7 @@ Injects a PNG logo into a TTF font as a ligature. Type a trigger sequence
 in any ligature-aware tool and the logo renders in place of the text.
 
 ```
-uv run font-lig --font input.ttf --png cool.png --out output.ttf --sequence "cool" --family-name "Font + Cool"
+uv run font-lig --font input.ttf --logo cool.png --out output.ttf --sequence "cool" --family-name "Font + Cool"
 ```
 
 ## Existing Tools
@@ -14,7 +14,7 @@ but would be thrilled if there is an existing tool that I overlooked!
 
 ## What it does
 
-1. Vectorizes the PNG with vtracer
+1. If logo is not an SVG, convert with vtracer
 2. Parses the SVG paths and scales them to cap-height
 3. Injects the result as a new glyph
 4. Adds a GSUB ligature rule mapping the trigger sequence to the glyph

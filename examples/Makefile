@@ -9,12 +9,6 @@ web:
 		--out noto_sans_mono_219.ttf \
 		--sequence 219 \
 		--family-name "Noto Sans Mono 219" \
-		--png 219.png \
+		--logo 219.png \
 		--scale 2.0
-	uv run font-lig --font noto_sans_mono.ttf \
-		--out noto_sans_mono_219_inverted.ttf \
-		--sequence 219 \
-		--family-name "Noto Sans Mono 219" \
-		--png 219.png \
-		--scale 2.0 --invert
 	python -m http.server 8080
