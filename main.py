@@ -247,18 +247,20 @@ def glyph_name_for_char(cmap: dict, char: str) -> str:
     return name
 
 
-def make_coverage(glyph_names: list[str]) -> ot.Coverage:
-    """Return OpenType Coverage table for these glyphs
+def make_coverage(glyph_names: list[str], font: TTFont) -> ot.Coverage:
+    """Return OpenType Coverage table for these glyphs, sorted by glyph ID.
 
-    This tells the fonts which glyphs (our sequence) a substitution rule
-    applies to.
+    This tells the font which glyphs a substitution rule applies to.
+    Coverage glyphs must be in glyph-ID order or fontTools will warn on serialization.
+    Force a rebuild of the glyph map to bypass cache (rebuild=True) and apply
+    to this glyph list.
     """
+    glyph_id = font.getReverseGlyphMap(rebuild=True)
     cov = ot.Coverage()
     # After much fuss it turns out setting the Format field is a NOP
     # The library will choose the most optimal configuration when we serialize.
     # https://github.com/fonttools/fonttools/blob/c760aaab4abbbb0d069b80f8b10334a429738319/Lib/fontTools/ttLib/tables/otTables.py#L970
-    cov.Format = 1
-    cov.glyphs = sorted(set(glyph_names))
+    cov.glyphs = sorted(set(glyph_names), key=lambda g: glyph_id.get(g, 0))
     return cov
 
 
@@ -405,8 +407,8 @@ def add_ligature(
 
             # L_mark (Type 6): two subtables one checks backtrack, one checks lookahead.
             # Each independently marks first_glyph when a forbidden neighbor is found.
-            excl_cov = make_coverage(exclusion_glyphs)
-            input_covs = [make_coverage([g]) for g in glyph_seq]
+            excl_cov = make_coverage(exclusion_glyphs, font)
+            input_covs = [make_coverage([g], font) for g in glyph_seq]
 
             def _chain_rule(backtrack_cov, lookahead_cov):
                 rule = ot.ChainContextSubst()
