@@ -2,6 +2,6 @@
 
 int main()
 {
-    printf("219\n");
+    printf("cool!\n");
     return 0;
 }
