@@ -77,6 +77,6 @@ into `font["glyf"]`, not after.
 
 ## PUA mapping
 
-The new glyph is assigned a code point in the Unicode Private Use Area
-(U+E001). This is what gives the glyph a stable character identity so the
+The new glyph is assigned a code point in from the first available Unicode
+Private Use Area. This is what gives the glyph a stable character identity so the
 ligature rule can reference it, without colliding with real characters.

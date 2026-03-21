@@ -22,7 +22,26 @@ from fontTools.svgLib.path import parse_path as svg_parse_path
 from fontTools.misc.transform import Transform
 from fontTools.ttLib.tables import otTables as ot
 
-_PUA_GLYPH_CP = 0xE001  # Private Use Area code point claimed by this tool
+_PUA_START = 0xE000
+_PUA_END = 0xF8FF  # BMP Private Use Area: U+E000–U+F8FF
+
+
+def _find_free_pua(font: TTFont) -> int:
+    """Find an unused PUA codepoint in the font, searching from the top down.
+
+    Nerd Fonts and similar projects fill PUA from E000 upward, so searching
+    downward from F8FF minimizes the chance of collision.
+    """
+    used: set[int] = set()
+    for table in font["cmap"].tables:
+        if hasattr(table, "cmap"):
+            used.update(cp for cp in table.cmap if _PUA_START <= cp <= _PUA_END)
+
+    for cp in range(_PUA_END, _PUA_START - 1, -1):
+        if cp not in used:
+            return cp
+
+    raise ValueError("No free codepoints in PUA range U+E000–U+F8FF")
 
 
 def _configure_logging(*, verbosity: int) -> None:
@@ -233,9 +252,12 @@ def add_glyph_to_font(
 
     # PUA (U+E000–U+F8FF) code point for ligature substitution, no conflict with real chars.
     # https://www.unicode.org/versions/Unicode16.0.0/core-spec/chapter-23/#G19465
+    # Search from top of range downward to avoid Nerd Fonts and similar PUA consumers.
+    pua_cp = _find_free_pua(font)
+    log.debug("using PUA codepoint U+%04X for glyph '%s'", pua_cp, glyph_name)
     for cmap in font["cmap"].tables:
         if cmap.format in (4, 12) and hasattr(cmap, "cmap"):
-            cmap.cmap[_PUA_GLYPH_CP] = glyph_name
+            cmap.cmap[pua_cp] = glyph_name
 
     log.info("added glyph '%s' (advance=%s)", glyph_name, advance)
 
@@ -392,7 +414,7 @@ def add_ligature(
 
     if context:
         exclusion_glyphs = alphanumeric_glyphs(font)
-        log.debug("context exclusion glyphs: %s", exclusion_glyphs)
+        log.debug("context exclusion glyphs: %d", len(exclusion_glyphs))
 
         if exclusion_glyphs:
             marker_glyph = get_or_create_marker_glyph(font, first_glyph)
