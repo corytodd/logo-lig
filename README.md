@@ -1,6 +1,6 @@
 # Logo Lig
 
-Injects a PNG logo into a TTF font as a ligature. Type a trigger sequence
+Injects a logo into a TTF font as a ligature. Type a trigger sequence
 in any ligature-aware tool and the logo renders in place of the text. The
 replacement is context aware and will only trigger when the sequence is not
 part of another number or string. Punctuation and whitespace may precede or
