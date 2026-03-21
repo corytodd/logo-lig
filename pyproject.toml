@@ -6,7 +6,6 @@ readme = "README.md"
 requires-python = "==3.12.*"
 dependencies = [
     "fonttools>=4.61.1",
-    "numpy>=2.4.2",
     "vtracer>=0.6",
     "Pillow>=10",
 ]
